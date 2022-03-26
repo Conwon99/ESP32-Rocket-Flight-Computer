@@ -1,6 +1,5 @@
-# ESP32-Rocket-Flight-Computer
+# ESP32-Rocket-Flight-Computer #
 
- ESP32 Rocket Flight Computer
  Author : Connor Dorward
  
  Logs barometer, GPS and accelerometer data. Sends data via LoRa.
