@@ -30,7 +30,11 @@
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+int pressure_BMP388=0;
+int avg_alt_BMP388=0;
 
+
+void printParameters();
 
 void setup() {
   Serial.begin(9600);
@@ -41,43 +45,63 @@ void setup() {
     for(;;); // Don't proceed, loop forever
   }
 
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
-  display.display();
-  delay(2000); // Pause for 2 seconds
-
-  // Clear the buffer
-  display.clearDisplay();
-
-  // Draw a single pixel in white
-  display.drawPixel(10, 10, SSD1306_WHITE);
+//  // Show initial display buffer contents on the screen --
+//  // the library initializes this with an Adafruit splash screen.
+//  display.display();
+//  delay(2000); // Pause for 2 seconds
+//
+//  // Clear the buffer
+//  display.clearDisplay();
+//
+//  // Draw a single pixel in white
+//  display.drawPixel(10, 10, SSD1306_WHITE);
 
   // Show the display buffer on the screen. You MUST call display() after
   // drawing commands to make them visible on screen!
-  display.display();
-  delay(2000);
+//  display.display();
+//  delay(2000);
   // display.display() is NOT necessary after every single drawing command,
   // unless that's what you want...rather, you can batch up a bunch of
   // drawing operations and then update the screen all at once by calling
   // display.display(). These examples demonstrate both approaches...
 
 
-  display.clearDisplay();
+   display.clearDisplay();
+//
+//  display.setTextSize(1); // Draw 2X-scale text
+//  display.setTextColor(SSD1306_WHITE);
+//  display.setCursor(0, 10);
+//  display.print("280(mPa)=");
+//  display.setCursor(0, 20);
+//  display.print("280(m) =");
+//  display.setCursor(0, 40);
+//  display.print("388(mPa)=");
+//  display.setCursor(0, 50);
+//  display.print("388(m)=");
 
-  display.setTextSize(1); // Draw 2X-scale text
+  display.setTextSize(2); // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 10);
-  display.print("280(mPa)=");
-  display.setCursor(0, 20);
-  display.print("280(m) =");
-  display.setCursor(0, 40);
-  display.print("388(mPa)=");
-  display.setCursor(0, 50);
-  display.print("388(m)=");
+//  display.setCursor(90, 20);
+//  display.print("hPa");
+//
+//  display.setCursor(90, 40);
+//  display.print("m");
+
+//  display.setCursor(0, 40);
+//  display.print("(m)");
+//
+//  display.setCursor(0, 50);
+//  display.print("(mPa)");
+
+
+
+
+
+  
   
 //  display.print("Pressure (mPa) |");
 //  display.print("Height (m)");
-  display.display();
+//  display.display();
 
 
   
@@ -88,15 +112,39 @@ void setup() {
 int c = 0;
 
 void loop() {
+
+  display.clearDisplay();
+  printParameters();
+  display.setCursor(0, 20);
+  display.print(avg_alt_BMP388);
   
-//display.clearDisplay();
-//display.print("Barometer  |");
-//display.display();
-//
-//c++;
-//delay(1000);
+
+  display.setCursor(0, 40);
+  display.print(pressure_BMP388);
+  display.display();
+
+  avg_alt_BMP388++;
+  pressure_BMP388++;
 
 
 
   
+}
+
+
+
+
+void printParameters()
+
+{
+  
+  display.setTextSize(2); // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(90, 20);
+  display.print("hPa");
+
+  display.setCursor(90, 40);
+  display.print("m");
+  
+
 }

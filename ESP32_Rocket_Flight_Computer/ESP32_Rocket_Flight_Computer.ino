@@ -15,7 +15,7 @@ TaskHandle_t read_sensors;
 #include <LoRa.h>
 #define BAND 866E6
 
-float seconds =0;
+float secs =0;
 char secs_c[10];
 
 //define the pins used by the LoRa transceiver module
@@ -295,7 +295,7 @@ void read_sensors_code( void * pvParameters )
   
 
     // Convert sensor reading into strings to send to SD/Lora
-    sprintf(secs_c, "%g", seconds);
+    sprintf(secs_c, "%g", secs);
     sprintf(lat_c, "%g", lat);
     sprintf(lon_c,"%g", lon);
     sprintf(alt_BMP280_c,"%g", avg_alt_BMP280);
@@ -341,7 +341,7 @@ void read_sensors_code( void * pvParameters )
     //Send buffer to SD
     appendFile(SD, "/data.txt", csv_buffer); // Cant include a logSD function as GPS outputs lat=0 lon=0
     appendFile(SD, "/data.txt", "\n"); // Cant include a logSD function as GPS outputs lat=0 lon=0
-    seconds=seconds+0.1;
+    secs=secs+0.1;
     //vTaskDelay(100 / portTICK_PERIOD_MS);
 
   }
@@ -360,10 +360,10 @@ void LoRa_Tx_code( void * pvParameters )
   {
 
      Serial.print("Sending Packet:");
-     Serial.println(seconds);
+     Serial.println(secs);
      LoRa.beginPacket();
      LoRa.print("PacketNum:");
-     LoRa.println(seconds);
+     LoRa.println(secs);
      LoRa.println(csv_buffer);
      LoRa.endPacket();
 
