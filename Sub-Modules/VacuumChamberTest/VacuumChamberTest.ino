@@ -6,7 +6,7 @@
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
 
-#define SEALEVELPRESSURE_HPA (1013.25)
+#define SEALEVELPRESSURE_HPA (1005)
 
 Adafruit_BMP3XX bmp;
 
@@ -40,6 +40,23 @@ void writeFile(fs::FS &fs, const char,const char);
 void appendFile(fs::FS &fs, const char , const char);
 void logSDCard(void);
 
+
+int offset = 0;
+short state = 1;
+float secs =0;
+float timestep = 0.1;
+float secs_state_trigger = 0;
+int alt_bef;
+
+//States
+/*
+ *  1 = Idle
+ *  2 = Boost/Launch
+ *  3 = Apogee
+ *  4 = Main
+ *  5 = Land
+ */
+
 void setup() {
   // put your setup code here, to run once:
  Serial.begin(115200);
@@ -66,11 +83,27 @@ void setup() {
   bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
   bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
   bmp.setOutputDataRate(BMP3_ODR_50_HZ);
+
+  int alt_sum=0;
+  
+  for (int i=0;i<10;i++)
+  {
+    alt_sum +=bmp.readAltitude(SEALEVELPRESSURE_HPA);
+    
+  }
+  offset = alt_sum/9;
+
+  Serial.print("Offset = ");
+  Serial.print(offset);
+  
+  
 }
 
 int pressure,alt;
 char pressure_c[10], alt_c[10];
 char csv_buffer[20];
+
+char secs_c[10], state_c[5];
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -108,12 +141,18 @@ void loop() {
 
     sprintf(pressure_c, "%d", pressure);
     sprintf(alt_c, "%d", alt);
+    sprintf(secs_c, "%f", secs);
+    sprintf(state_c, "%d", state);
 
     Serial.println(pressure_c);
     Serial.println(alt_c);
     Serial.println();
 
     strcpy(csv_buffer, "");
+    strcat(csv_buffer, secs_c);
+    strcat(csv_buffer, ",");
+    strcat(csv_buffer, state_c);
+    strcat(csv_buffer, ",");
     strcat(csv_buffer, pressure_c);
     strcat(csv_buffer, ",");
     strcat(csv_buffer, alt_c);
@@ -122,8 +161,58 @@ void loop() {
     appendFile(SD, "/data.txt", "\r\n"); // Cant include a logSD function as GPS outputs lat=0 lon=0
 
     
-    delay(1000);
+    delay(100);  // timestep in milliseconds
+    secs = secs +timestep;   // timestep = 0.1 seconds
+//    Serial.println(state);
+//    Serial.println(alt);
+//    Serial.println();
 
+    // State Detection
+
+    // Compare height reading to reading 1.5s before and if large enough, rocket launched
+    if (secs_state_trigger < 1.5)
+    {
+      secs_state_trigger += timestep;
+      
+    }
+    else // if reached 1.5 secs
+
+    {
+    
+      if ((alt - alt_bef >20) && state ==1 )         // if reached 1.5 seconds, if height now - height before
+      {
+  
+        state = 2;// Launched
+        
+        
+      }
+       // If a continual drop in altitude over 3 seconds
+      else if ((alt < alt_bef) && state==2)
+      {
+  
+        state = 3; // apogee
+        
+      }
+      else if( (alt < 427) && state ==3)
+      {
+  
+        state = 4; // main
+  
+        
+      }
+      else if (alt >=-40 && alt <30 && state==4)
+      {
+        state = 5; //landed
+        
+      }
+
+      Serial.println("1.5s");
+      alt_bef = alt;
+      secs_state_trigger=0;
+      
+  
+    }
+    
 
 
 }
