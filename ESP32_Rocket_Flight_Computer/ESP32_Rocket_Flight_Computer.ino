@@ -78,9 +78,9 @@ SPIClass sdSPI(HSPI);
 // BMP280 BAROMETER 
 #include <Wire.h>
 #include <SPI.h>
-#include <Adafruit_BMP280.h>
+//#include <Adafruit_BMP280.h>
 
-Adafruit_BMP280 bmp; // I2C
+//Adafruit_BMP280 bmp; // I2C
 
 // BMP388
 #include "Adafruit_BMP3XX.h"
@@ -96,10 +96,10 @@ Adafruit_MPU6050 mpu;
 
 // Function prototypes//////////////////////////////
 
-float get_alt_BMP280();
+//float get_alt_BMP280();
 float get_alt_BMP388();
 float get_accel();
-void get_Readings();
+//void get_Readings();
 void set_Offset();
 
 
@@ -115,13 +115,31 @@ void BT_send_status();
 
 
 // GLOBAL VARIABLES ///////////////////////////////
-float avg_alt_BMP280=0;
+
+//state variables
+int state = 1; // Launch state of rocket
+char state_c[2];
+//float secs =0;
+float timestep = 0.1;
+float secs_state_trigger = 0;
+int alt_bef;
+//States
+/*
+ *  1 = Idle
+ *  2 = Boost/Launch
+ *  3 = Apogee
+ *  4 = Main
+ *  5 = Land
+ */
+
+//float avg_alt_BMP280=0;
 float avg_alt_BMP388=0;
 float avg_accel;
 char accel_c[10];
-float alt_BMP280_sum, alt_BMP388_sum;
+//float alt_BMP280_sum, 
+float alt_BMP388_sum;
 float alt_offset = 0.0;
-char alt_BMP280_c[10];
+//char alt_BMP280_c[10];
 char alt_BMP388_c[10];
 
 float accel_sum,accel_offset =0.0;
@@ -157,27 +175,27 @@ void setup()
 
 
 // Start Barometer comms
-  unsigned status;
-  status = bmp.begin(0x76);
-  if (!status) 
-  {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
-    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-    Serial.print("        ID of 0x60 represents a BME 280.\n");
-    Serial.print("        ID of 0x61 represents a BME 680.\n");
-    while (1) delay(10);
-  }
-
-  
-    /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+//  unsigned status;
+//  status = bmp.begin(0x76);
+//  if (!status) 
+//  {
+//    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+//                      "try a different address!"));
+//    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
+//    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+//    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+//    Serial.print("        ID of 0x60 represents a BME 280.\n");
+//    Serial.print("        ID of 0x61 represents a BME 680.\n");
+//    while (1) delay(10);
+//  }
+//
+//  
+//    /* Default settings from datasheet. */
+//  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+//                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+//                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+//                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+//                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
    
     if (!bmp388.begin_I2C()) {   // hardware I2C mode, can pass in address & alt Wire
@@ -210,7 +228,7 @@ void setup()
   //set_Offset();
 
 //  Serial.println("Effset has been set");
-  get_Readings();
+ // get_Readings();
 
 
    
@@ -261,7 +279,7 @@ void read_sensors_code( void * pvParameters )
     for (int i = 0; i <10;i++)  // Takes 10 readings at a rate of every 0.01s (a t100Hz)
   {
   
-      alt_BMP280_sum = alt_BMP280_sum + get_alt_BMP280();              // BAROMETER DATA
+      //alt_BMP280_sum = alt_BMP280_sum + get_alt_BMP280();              // BAROMETER DATA
       alt_BMP388_sum = alt_BMP388_sum + get_alt_BMP388();              // BAROMETER DATA
       accel_sum = accel_sum + get_accel();                  // ACCELEROMETER DATA
       vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -269,38 +287,75 @@ void read_sensors_code( void * pvParameters )
   }
 //
   //average the 10 readings over the 0.1s
-  avg_alt_BMP280 = alt_BMP280_sum/10;
+ // avg_alt_BMP280 = alt_BMP280_sum/10;
   avg_alt_BMP388 = alt_BMP388_sum/10;
   avg_accel = accel_sum/10;
   
   //reset the sum values for next reading
-  alt_BMP280_sum =0;
+  //alt_BMP280_sum =0;
   alt_BMP388_sum =0;
   accel_sum = 0;
+
+  // State Detection
+
+
+ // Compare height reading to reading 1.5s before and if large enough, rocket launched
+    if (secs_state_trigger < 1.5)
+    {
+      secs_state_trigger += timestep;
+      
+    }
+    else // if reached 1.5 secs
+
+    { Serial.println("REACHED");
+      Serial.println();
+    
+      if ((avg_alt_BMP388 - alt_bef >20) && state ==1 )         // if reached 1.5 seconds, if height now - height before
+      {
   
-//
-//  Serial.print("Alt=");
-//  Serial.println(avg_alt_BMP280);
-//
-//  Serial.print("Lat=");
-//  Serial.println(lat);
-//
-//  Serial.print("Lon=");
-//  Serial.println(lon);
+        state = 2;// Launched
+        
+        
+      }
+       // If a continual drop in altitude over 3 seconds
+      else if ((avg_alt_BMP388 < alt_bef) && state==2)
+      {
+  
+        state = 3; // apogee
+        
+      }
+      else if( (avg_alt_BMP388 < 427) && state ==3)
+      {
+  
+        state = 4; // main
+  
+        
+      }
+      else if (avg_alt_BMP388 >=-40 && avg_alt_BMP388 <30 && state==4)
+      {
+        state = 5; //landed
+        
+      }
 
-//  Serial.println();
+      Serial.println("1.5s");
+      alt_bef = avg_alt_BMP388;
+      secs_state_trigger=0;
+      
+  
+    }
+  
 
-    //avg_alt_BMP280 = get_alt_BMP280();
-   // avg_alt_BMP388 = get_alt_BMP388();
+  
   
 
     // Convert sensor reading into strings to send to SD/Lora
     sprintf(secs_c, "%g", secs);
     sprintf(lat_c, "%g", lat);
     sprintf(lon_c,"%g", lon);
-    sprintf(alt_BMP280_c,"%g", avg_alt_BMP280);
+   // sprintf(alt_BMP280_c,"%g", avg_alt_BMP280);
     sprintf(alt_BMP388_c,"%g", avg_alt_BMP388);
     sprintf(accel_c,"%g", avg_accel);
+    sprintf(state_c, "%d", state);
     
     //Append strings to buffer
    // 'Time, Lat, Lon, Altitude, Accel, state'
@@ -310,39 +365,34 @@ void read_sensors_code( void * pvParameters )
     strcat(csv_buffer, lat_c);
     strcat(csv_buffer, ",");
     strcat(csv_buffer, lon_c);
-    strcat(csv_buffer, ",");
-    strcat(csv_buffer,alt_BMP280_c);
+   // strcat(csv_buffer, ",");
+   // strcat(csv_buffer,alt_BMP280_c);
     strcat(csv_buffer, ",");
     strcat(csv_buffer,alt_BMP388_c);
     strcat(csv_buffer, ",");
     strcat(csv_buffer,accel_c);
+    strcat(csv_buffer, ",");
+    strcat(csv_buffer,state_c);
+    
   
     //Ensure buffer correct
     Serial.print("csv_buffer:");
     Serial.println(csv_buffer);
 
-    //Print to Serial Console
-//    Serial.print("Lat:");
-//    Serial.println(lat_c);
-//    Serial.print("Lon:");
-//    Serial.println(lon_c);
-//    Serial.print("alt_BMP280: ");
-//    Serial.println(get_alt_BMP280());
-//    Serial.print("alt_BMP388: ");
-//    Serial.println(get_alt_BMP388());
-//    Serial.print("acel: ");
-//    Serial.println(accel_c);
-
     Serial.println();
-
-
-    
 
     //Send buffer to SD
     appendFile(SD, "/data.txt", csv_buffer); // Cant include a logSD function as GPS outputs lat=0 lon=0
     appendFile(SD, "/data.txt", "\n"); // Cant include a logSD function as GPS outputs lat=0 lon=0
+    
     secs=secs+0.1;
     //vTaskDelay(100 / portTICK_PERIOD_MS);
+
+
+    
+
+
+    
 
   }
 
@@ -406,10 +456,10 @@ void loop()
 
 
 
-float get_alt_BMP280()
-{
-   return bmp.readAltitude(SEALEVELPRESSURE_HPA)-alt_offset;
-}
+//float get_alt_BMP280()
+//{
+//   return bmp.readAltitude(SEALEVELPRESSURE_HPA)-alt_offset;
+//}
 
 float get_alt_BMP388()
 {
@@ -478,7 +528,7 @@ void BT_send_status()
 {
 
   //SerialBT.write(avg_alt);
-  SerialBT.write(int(avg_alt_BMP280));
+//  SerialBT.write(int(avg_alt_BMP280));
   SerialBT.write('m');
   //SerialBT.write("\n");
   
@@ -486,40 +536,40 @@ void BT_send_status()
 
 
 
-void get_Readings()
-
-{
-
-  //get_coords();
-
-  for (int i = 0; i <10;i++)  // Take 10 readings then average
-  {
-  
-      alt_BMP280_sum = alt_BMP280_sum + get_alt_BMP280(); // BAROMETER DATA
-      accel_sum = accel_sum + get_accel();                  // ACCELEROMETER DATA
-
-     delay(100);
-
-  }
-
-  avg_alt_BMP280 = alt_BMP280_sum/10;
-  avg_accel = accel_sum/10;
-
-  alt_BMP280_sum =0;
-  accel_sum=0;
-
-  Serial.print("Alt=");
-  Serial.println(get_alt_BMP280());
-
-  Serial.print("Lat=");
-  Serial.println(lat);
-
-  Serial.print("Lon=");
-  Serial.println(lon);
-
-  Serial.println();
-
-}
+//void get_Readings()
+//
+//{
+//
+//  //get_coords();
+//
+//  for (int i = 0; i <10;i++)  // Take 10 readings then average
+//  {
+//  
+//      alt_BMP280_sum = alt_BMP280_sum + get_alt_BMP280(); // BAROMETER DATA
+//      accel_sum = accel_sum + get_accel();                  // ACCELEROMETER DATA
+//
+//     delay(100);
+//
+//  }
+//
+////  avg_alt_BMP280 = alt_BMP280_sum/10;
+//  avg_accel = accel_sum/10;
+//
+////  alt_BMP280_sum =0;
+//  accel_sum=0;
+//
+//  Serial.print("Alt=");
+//  Serial.println(get_alt_BMP280());
+//
+//  Serial.print("Lat=");
+//  Serial.println(lat);
+//
+//  Serial.print("Lon=");
+//  Serial.println(lon);
+//
+//  Serial.println();
+//
+//}
 
 
 
