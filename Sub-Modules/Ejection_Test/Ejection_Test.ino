@@ -7,15 +7,13 @@
  * Only pins 4 and 0 work for Digital GPIO
  */
 
-//ESP32 LoRa Pins
 #define pinDrogue 4
 #define pinMain  0
 
-// HELTEK Pins
-//
+
+////Wroom Test Board
 //#define pinDrogue 13
 //#define pinMain  0
-
 
 void setup() {
   // put your setup code here, to run once:

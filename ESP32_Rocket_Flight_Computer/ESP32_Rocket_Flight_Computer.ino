@@ -15,6 +15,9 @@ TaskHandle_t read_sensors;
 #include <LoRa.h>
 #define BAND 866E6
 
+#define pinDrogue 4
+#define pinMain  0
+
 float secs =0;
 char secs_c[10];
 
@@ -123,6 +126,8 @@ char state_c[2];
 float timestep = 0.1;
 float secs_state_trigger = 0;
 int alt_bef;
+bool launch_timer_begin=false;
+float launch_timer = 0;
 //States
 /*
  *  1 = Idle
@@ -148,6 +153,15 @@ int readings = 0;
 
 void setup() 
 {
+
+   pinMode(pinDrogue, OUTPUT);
+   pinMode(pinMain, OUTPUT);
+
+   //Ensure no voltage at mosfet gates prevent ignition
+   digitalWrite(pinDrogue, LOW);
+   digitalWrite(pinMain, LOW);
+
+   
 
   //Start USB comms
    Serial.begin(9600);
@@ -230,6 +244,30 @@ void setup()
 //  Serial.println("Effset has been set");
  // get_Readings();
 
+   // Get altitude to set alt_bef to alt
+  int sum_alt=0;
+  int init_alt;
+  
+  for (int i = 0;i<10;i++)
+  {
+    
+   sum_alt = sum_alt + get_alt_BMP388();
+  }
+
+  avg_alt_BMP388 = sum_alt/10;
+  alt_bef = avg_alt_BMP388;
+  
+  Serial.print("Initial Altitude=");
+  Serial.println(avg_alt_BMP388);
+
+
+ // while(BT_receive(1) != "start"){}
+//  SerialBT.write("Altitude=");
+ // SerialBT.write(avg_alt_BMP388);
+  
+
+  
+
 
    
 
@@ -260,6 +298,12 @@ void setup()
   //while(BT_receive(1) != "start"){}
 
     SerialBT.print("Setup Okay");
+
+    //delay for barometer fluctuation to pass
+
+    delay(3000);
+
+
  
     
 }
@@ -314,21 +358,32 @@ void read_sensors_code( void * pvParameters )
       {
   
         state = 2;// Launched
-        
-        
+        // Start timer of 24s to disable apogee ejection 
+        launch_timer_begin=true;
+                
       }
        // If a continual drop in altitude over 3 seconds
-      else if ((avg_alt_BMP388 < alt_bef) && state==2)
+      else if ((avg_alt_BMP388 < alt_bef) && state==2 && launch_timer >= 5)
       {
   
         state = 3; // apogee
+
+        Serial.println( "drogue fired");
+        digitalWrite(pinDrogue, HIGH);
+        delay(300);
+        digitalWrite(pinDrogue, LOW);
         
       }
       else if( (avg_alt_BMP388 < 427) && state ==3)
       {
   
         state = 4; // main
-  
+
+        Serial.println( "main fired");
+        digitalWrite(pinMain, HIGH);
+        delay(300);
+        digitalWrite(pinMain, LOW);
+    
         
       }
       else if (avg_alt_BMP388 >=-40 && avg_alt_BMP388 <30 && state==4)
@@ -344,7 +399,7 @@ void read_sensors_code( void * pvParameters )
   
     }
   
-
+    
   
   
 
@@ -386,6 +441,14 @@ void read_sensors_code( void * pvParameters )
     appendFile(SD, "/data.txt", "\n"); // Cant include a logSD function as GPS outputs lat=0 lon=0
     
     secs=secs+0.1;
+
+    if(launch_timer_begin)
+    {
+      launch_timer +=timestep;
+      
+    }
+
+    
     //vTaskDelay(100 / portTICK_PERIOD_MS);
 
 
@@ -524,15 +587,15 @@ return BT_message[0];
 }
 
 
-void BT_send_status() 
-{
-
-  //SerialBT.write(avg_alt);
+//void BT_send_status() 
+//{
+//
+//  
 //  SerialBT.write(int(avg_alt_BMP280));
-  SerialBT.write('m');
-  //SerialBT.write("\n");
-  
-}
+//  SerialBT.write('m');
+//  //SerialBT.write("\n");
+//  
+//}
 
 
 
