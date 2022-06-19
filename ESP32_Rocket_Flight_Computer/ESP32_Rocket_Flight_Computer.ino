@@ -163,19 +163,33 @@ void setup()
 
    
 
+   
+
   //Start USB comms
    Serial.begin(9600);
    delay(100);
+
+
+       // Start Bluetooth comms   
+   SerialBT.begin("ESP32"); //Bluetooth device name
+   Serial.println("The device started, now you can pair it with bluetooth!");
+   delay(3000);
+   SerialBT.print("Device Setup Okay!");
+   Serial.println("Bluetooth Started");
+  
+
+  while(1)
+  {}
 
    //Start GPS comms
    serialGPS.begin(9600);
 
   
-   // Start Bluetooth comms   
-   SerialBT.begin("ESP32"); //Bluetooth device name
-   Serial.println("The device started, now you can pair it with bluetooth!");
-   delay(3000);
-   SerialBT.print("Enter Sea Level Pressure: ");
+//   // Start Bluetooth comms   
+//   SerialBT.begin("ESP32"); //Bluetooth device name
+//   Serial.println("The device started, now you can pair it with bluetooth!");
+//   delay(3000);
+//   SerialBT.print("Enter Sea Level Pressure: ");
 
    //Start LoRa comms
   SPI.begin(SCK, MISO, MOSI, SS);
@@ -264,9 +278,11 @@ void setup()
  // while(BT_receive(1) != "start"){}
 //  SerialBT.write("Altitude=");
  // SerialBT.write(avg_alt_BMP388);
-  
 
-  
+ //while(BT_receive(1) != "start"){}
+
+ 
+
 
 
    
@@ -297,10 +313,9 @@ void setup()
 
   //while(BT_receive(1) != "start"){}
 
-    SerialBT.print("Setup Okay");
+    
 
     //delay for barometer fluctuation to pass
-
     delay(3000);
 
 
