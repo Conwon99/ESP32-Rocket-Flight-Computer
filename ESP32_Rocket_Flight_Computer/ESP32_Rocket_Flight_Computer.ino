@@ -178,9 +178,6 @@ void setup()
    Serial.println("Bluetooth Started");
   
 
-  while(1)
-  {}
-
    //Start GPS comms
    serialGPS.begin(9600);
 
